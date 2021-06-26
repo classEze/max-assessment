@@ -9,13 +9,12 @@ const dotenv = require('dotenv').config()
 const con = mysql.createConnection(
     {
         host:process.env.DATABASE_HOST,
-        username:process.env.DATABASE_USER,
+        user:process.env.DATABASE_USER,
         password:process.env.DATABASE_PASS,
         database:process.env.DATABASE_NAME,
         }
 )
 // console.log(process.env.DATABASE_HOST,process.env.DATABASE_USER,process.env.DATABASE_PASS, process.env.DATABASE_NAME)
-con.connect(err=> console.log(err? err.message : "Database Connection Established"))
 
 //Middlewares
 app.use(express.json())
@@ -25,9 +24,25 @@ app.use(express.urlencoded({extended:false}))
 
 app.get('/movies', async (req,res)=>{
     try{
+       con.connect(err=> console.log(err? err.message : "Database Connection Established"))
        const fetchedData = await axios.get('https://swapi.dev/api/films');
        const results = fetchedData.data.results
-       const movies = results.map( (result, index) =>({id:index+1, title:result.title, opening_crawl:result.opening_crawl, comment_count:90 }))
+       const sqlQuery = `SELECT COUNT(*) AS comment_count GROUP BY movie_id `
+
+       con.query(sqlQuery, function (err,data) {
+       if(err) {
+           con.close()
+            return res.status(500).json({message:"Internal Server Error"})
+        }
+
+        con.close()
+        let returnedCount = data;
+
+        }//endquerycallback
+        )//endquery
+
+
+       const movies = results.map( (result, index) =>({id:index+1, title:result.title, opening_crawl:result.opening_crawl, comment_count:returnedCount[index+1] }))
        res.status(200).json({count:results.length, movies})
     }
     catch(err){
@@ -36,9 +51,10 @@ app.get('/movies', async (req,res)=>{
 })
 app.get('/movies/:id/comments', (req,res)=>{
     const sqlQuery = `SELECT comment_text, public_ip, created_at FROM Comments WHERE movie_id=${req.params.id} `
-    con.query(sqlQuery, (err,result))
-    if(err) return res.status(500).json({error:err.message})
-    res.status(200).json({count:result.length, comments:result})
+    con.query(sqlQuery, function (err,result) {
+        if(err) return res.status(500).json({error:err.message})
+        res.status(200).json({count:result.length, comments:result})
+    })
 })
 app.get('/comments/:id', (req,res)=>{
     axios.get('https://swapi.dev/api/films')
