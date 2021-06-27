@@ -34,6 +34,10 @@ test_Connection()
 app.use(express.json())
 app.use(express.urlencoded({extended:false}))
 
+// BASE_URL
+app.get('/', (req,res)=>{
+    res.status(200).json({message:'HEY, WELCOME to MAX-ASSESSMENT. PLEASE READ UP THE DOCUMENTATION TO KNOW HOW TO USE THE ENDPOINTS'})
+})
 
 // GET ALL MOVIES 
 app.get('/movies', async (req,res)=>{
@@ -60,11 +64,12 @@ app.get('/movies', async (req,res)=>{
 //POST A COMMENT TO A MOVIE
 app.post('/movie/:id/addComment', async (req,res)=>{
     if(!req.body.text || req.params.id > 6 || req.params.id < 1 )
-    return res.status(400).json({message:"Bad Request, Please Enter Correct parameters", status:"request failed"})
+    return res.status(400).json({message:"Bad Request, Please Enter Correct parameters and Request body", status:"request failed"})
 
     if(req.body.text.length > 500)
       return res.status(400).json({message:"Bad Request, Comment must not exceed 500 characters", status:"request failed"})
     try{
+    if(isNaN(req.params.id)) throw Error("Invalid id, No such Movie exists.")
     const public_ip = RequestIp.getClientIp(req)
     const [results] = await sequelize.query(`INSERT INTO Comments (movie_id, comment_text, public_ip)
      VALUES(${req.params.id} , '${req.body.text}' , '${public_ip.toString()}')`)
@@ -79,6 +84,7 @@ app.post('/movie/:id/addComment', async (req,res)=>{
 //GET ALL COMMENTS FOR A MOVIE
 app.get('/movie/:id/getComments', async (req,res)=>{
     try{
+    if(isNaN(req.params.id)) throw Error("Invalid id, No such Movie exists.")
     const [results] = await sequelize.query(`SELECT * FROM Comments WHERE movie_id = ${req.params.id}
     ORDER BY created_at DESC`)
     res.status(200).json({comment_count:results.length, comments:results})
@@ -92,6 +98,7 @@ app.get('/movie/:id/getComments', async (req,res)=>{
 //GET ALL CHARACTERS FOR A MOVIE
 app.get('/movie/:id/getCharacters', async (req,res)=>{
     try{
+        if(isNaN(req.params.id)) throw Error("Invalid id, No such Movie  exists.")
         const fetchedData = await axios.get(`https://swapi.dev/api/films/${req.params.id}`)
         const fetchedMovie = fetchedData.data
 
@@ -133,8 +140,7 @@ app.get('/movie/:id/getCharacters', async (req,res)=>{
     })
     }
     catch(err){
-        console.log(err)
-        res.status(500).send(err.message)
+        res.status(500).json({error:err.message, status:"request failed"})
     }
 })
 
