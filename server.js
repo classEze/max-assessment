@@ -5,14 +5,14 @@ const {Sequelize} = require('sequelize');
 const dotenv = require('dotenv').config()
 const RequestIp = require('@supercharge/request-ip')
 
-async function make_Request(url){
-    try{
-        return await axios.get(url)
-    }
-    catch(err){
-        return err.message
-    }
-}
+const {sortByHeightASC,
+    sortByHeightDESC,
+    filterByGender,
+    sortByNameASC,
+    sortByNameDESC,
+    sumUp,
+    convertToFeets} = require('./utilities.js')
+
 
 
 //Database Connection
@@ -97,28 +97,65 @@ app.get('/movie/:id/getCharacters', async (req,res)=>{
     try{
         const fetchedData = await axios.get(`https://swapi.dev/api/films/${req.params.id}`)
         const fetchedMovie = fetchedData.data
-        fetchedMovie.characters.forEach(async (character) =>{
-            req.answer.push(await make_Request(character))
-        })
-        console.log(req.answer)
 
-        // const strippedCharacters = characters.map(character=>({name:character.name, height:character.height, gender:character.gender}))
-        res.status(200).json({message:"Request Successful", characters:req.answer})
+        var movieCharacters = await Promise.all(
+            fetchedMovie.characters.map( singleCharacter => {
+                return  axios.get(singleCharacter)
+                .then(eachCharacter=>eachCharacter.data)
+                .catch(err=>err)
+            })
+        ) 
 
-        // res.status(200).send(fetchedMovie.characters)
+        movieCharacters = movieCharacters.map(character=>({name:character.name, gender:character.gender, height:character.height}))
+        if(req.query?.sortBy?.toLowerCase() == 'height'){
+            if(req.query.order.toLowerCase() == "asc"){
+                sortByHeightASC(movieCharacters)
+            }
+
+           else if(req.query.order.toLowerCase() == "desc"){
+                sortByHeightDESC(movieCharacters)
+            }
+        }
+
+        if(req.query?.sortBy?.toLowerCase() == 'name'){
+            if(req.query.order.toLowerCase() == "asc"){
+                sortByNameASC(movieCharacters)
+            }
+
+           else if(req.query.order.toLowerCase() == "desc"){
+            sortByNameDESC(movieCharacters)
+            }
+        }
+        if(req.query.filter){
+            movieCharacters = filterByGender(movieCharacters, req.query.filter.toLowerCase())
+        }
+
+        res.status(200).
+        json({
+        message:"Request Successful", 
+        total_count:movieCharacters.length,
+        total_height: sumUp(movieCharacters) + "cm",
+       total_height_in_feets: convertToFeets(movieCharacters),
+        characters:movieCharacters
+    })
     }
+
+
     catch(err){
-        res.status(500).send(err.message)     
+        console.log(err)
+        res.status(500).send(err.message)
   
     }
 })
 
 
 app.use((req,res,next)=>{
-    res.status(404).json({message:"This route is not available"})
+    res.status(404).json({message:" Oops!! Not found. This route is not available please"})
 })
+
+
 app.use((err,req,res,next)=>{
-    res.status(500).json({message:"Internal Server Error"})
+    res.status(500).json({message:" Ouch, Something a'int right. Internal Server Error"})
 })
 
 
