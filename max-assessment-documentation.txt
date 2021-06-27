@@ -57,3 +57,4 @@ REQUIREMENTS - Comments text must not exceed 500 characters.
 -- Note: the text field is required
 -- Request body must be raw json data
 
+-- Not Quite Sure where to find that COMPULSORY ROUTE PARAMETER movieId ? Please access max-assessment.herokuapp.com/movies. Each movie has a unique id attached to it. There you go.. 
