@@ -1,0 +1,59 @@
+DOCUMENTATION
+NAME - MAX-ASSESSMENT A collection of REST api endpoints to fetch and manipulate movies metadata from Star Wars Api(swapi.dev/films)
+
+BASE_URL : max-assessment.herokuapp.com
+
+
+//Available Routes
+
+//***GET ALL MOVIES
+max-assessment.herokuapp.com/movies
+METHOD: GET
+QUERY PARAMETER : none
+ROUTE PARAMETER:  none
+SUCCESS RESPONSE STATUS - 200
+Example request: max-assessment.herokuapp.com/movies
+
+
+***GET ALL COMMENTS THAT HAVE BEEN POSSTED ON A PARTICULAR MOVIE
+max-assessment.herokuapp.com/movie/<movieId>/getComments
+METHOD: GET
+QUERY :none
+SUCCESS RESPONSE STATUS - 200
+COMPULSORY ROUTE PARAMETER: movieId
+Example request: max-assessment.herokuapp.com/movie/3/getComments
+
+
+//***GET ALL CHARACTERS FOR A MOVIE
+route:  max-assessment.herokuapp.com/movie/<movieId>/getCharacters
+METHOD: GET
+SUCCESS RESPONSE STATUS - 200
+OPTIONAL_QUERY_PARAMETERS : { 
+      filter: values - male | female | n/a | hermaphrodite,
+      sortBy: values - name | height
+      order : values- ASC | DESC
+   }
+COMPULSORY ROUTE PARAMETER: movieId
+Example Requests
+  1. max-assessment.herokuapp.com/movie/5/getCharacters
+  2. max-assessment.herokuapp.com/movie/2/getCharacters?sortBy=name&order=ASC
+  3. max-assessment.herokuapp.com/movie/2/getCharacters?sortBy=height&order=desc
+  4. max-assessment.herokuapp.com/movie/2/getCharacters?sortBy=height&order=desc&filter=hermaprodite
+
+
+
+//***ADD A COMMENT TO A PARTICULAR MOVIE
+URL - max-assessment.herokuapp.com/movie/<movieId>/addComment
+METHOD: POST
+QUERY PARAMETER : none
+SUCCESS RESPONSE CODE - 201
+COMPOLSORY ROUTE PARAMETER: movieId
+example request: max-assessment.herokuapp.com/movie/5/addComment
+  {
+headers: {Content-Type:application/json},
+body:JSON.stringify({text:"blahblabbhjhhduhhjsjs"})
+  }
+REQUIREMENTS - Comments text must not exceed 500 characters.
+-- Note: the text field is required
+-- Request body must be raw json data
+
