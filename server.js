@@ -1,4 +1,4 @@
-const { default: axios } = require("axios");
+const  axios  = require("axios");
 const express=require("express");
 const app = express();
 const {Sequelize} = require('sequelize');
@@ -11,7 +11,9 @@ const {sortByHeightASC,
     sortByNameASC,
     sortByNameDESC,
     sumUp,
-    convertToFeets} = require('./utilities.js')
+    convertToFeets,
+    sortByDateASC} = require('./utilities.js')
+
 
 
 
@@ -33,15 +35,20 @@ app.use(express.json())
 app.use(express.urlencoded({extended:false}))
 
 
-
+// GET ALL MOVIES 
 app.get('/movies', async (req,res)=>{
     try{
        const fetchedData = await axios.get('https://swapi.dev/api/films');
        const [results] = await sequelize.query(`SELECT movie_id, COUNT(*) AS comment_count FROM Comments GROUP BY movie_id`)
        const swapiResults = fetchedData.data.results
-       const movies = swapiResults.map( (result, index) =>({id:index+1,
-         title:result.title, opening_crawl:result.opening_crawl, 
-         comment_count:results[index]?.comment_count || 0 }))
+       sortByDateASC(swapiResults)
+       const movies = swapiResults.map( (eachMovie, index) =>({
+         id:index+1,
+         title:eachMovie.title,
+          opening_crawl:eachMovie.opening_crawl, 
+         comment_count:results[index]?.comment_count || 0 ,
+         release_date:eachMovie.release_date
+        }))
        res.status(200).json({totalMoviesCount:swapiResults.length, movies})
     }
     catch(err){
@@ -50,17 +57,7 @@ app.get('/movies', async (req,res)=>{
 })
 
 
-
-app.get('/movie/:id/comments', async (req,res)=>{
-    try{
-        const [results] = await sequelize.query(`SELECT comment_text, public_ip, created_at FROM Comments WHERE movie_id=${req.params.id}`)
-        res.status(200).json({comments_count:results.length, comments:results})    
-    }
-    catch(err){
-        res.status(500).json({error:err.message})
-    }
-})
-
+//POST A COMMENT TO A MOVIE
 app.post('/movie/:id/addComment', async (req,res)=>{
     if(!req.body.text || req.params.id > 6 || req.params.id < 1 )
     return res.status(400).json({message:"Bad Request, Please Enter Correct parameters", status:"request failed"})
@@ -68,7 +65,6 @@ app.post('/movie/:id/addComment', async (req,res)=>{
     if(req.body.text.length > 500)
       return res.status(400).json({message:"Bad Request, Comment must not exceed 500 characters", status:"request failed"})
     try{
-          //getClient _public_ip
     const public_ip = RequestIp.getClientIp(req)
     const [results] = await sequelize.query(`INSERT INTO Comments (movie_id, comment_text, public_ip)
      VALUES(${req.params.id} , '${req.body.text}' , '${public_ip.toString()}')`)
@@ -80,10 +76,11 @@ app.post('/movie/:id/addComment', async (req,res)=>{
 })
 
 
-
+//GET ALL COMMENTS FOR A MOVIE
 app.get('/movie/:id/getComments', async (req,res)=>{
     try{
-    const [results] = await sequelize.query(`SELECT * FROM Comments WHERE movie_id = ${req.params.id}`)
+    const [results] = await sequelize.query(`SELECT * FROM Comments WHERE movie_id = ${req.params.id}
+    ORDER BY created_at DESC`)
     res.status(200).json({comment_count:results.length, comments:results})
     }
     catch(err){
@@ -92,7 +89,7 @@ app.get('/movie/:id/getComments', async (req,res)=>{
 })
 
 
-
+//GET ALL CHARACTERS FOR A MOVIE
 app.get('/movie/:id/getCharacters', async (req,res)=>{
     try{
         const fetchedData = await axios.get(`https://swapi.dev/api/films/${req.params.id}`)
@@ -105,31 +102,27 @@ app.get('/movie/:id/getCharacters', async (req,res)=>{
                 .catch(err=>err)
             })
         ) 
-
         movieCharacters = movieCharacters.map(character=>({name:character.name, gender:character.gender, height:character.height}))
         if(req.query?.sortBy?.toLowerCase() == 'height'){
-            if(req.query.order.toLowerCase() == "asc"){
+            if(req.query?.order?.toLowerCase() == "asc"){
                 sortByHeightASC(movieCharacters)
             }
 
-           else if(req.query.order.toLowerCase() == "desc"){
+           else if(req.query?.order?.toLowerCase() == "desc"){
                 sortByHeightDESC(movieCharacters)
             }
         }
-
         if(req.query?.sortBy?.toLowerCase() == 'name'){
-            if(req.query.order.toLowerCase() == "asc"){
+            if(req.query?.order?.toLowerCase() == "asc"){
                 sortByNameASC(movieCharacters)
             }
-
-           else if(req.query.order.toLowerCase() == "desc"){
+           else if(req.query?.order?.toLowerCase() == "desc"){
             sortByNameDESC(movieCharacters)
             }
         }
         if(req.query.filter){
             movieCharacters = filterByGender(movieCharacters, req.query.filter.toLowerCase())
         }
-
         res.status(200).
         json({
         message:"Request Successful", 
@@ -139,26 +132,20 @@ app.get('/movie/:id/getCharacters', async (req,res)=>{
         characters:movieCharacters
     })
     }
-
-
     catch(err){
         console.log(err)
         res.status(500).send(err.message)
-  
     }
 })
 
-
+//404 ROUTE HANDLER
 app.use((req,res,next)=>{
     res.status(404).json({message:" Oops!! Not found. This route is not available please"})
 })
 
-
+//500 ROUTE HANDLER
 app.use((err,req,res,next)=>{
     res.status(500).json({message:" Ouch, Something a'int right. Internal Server Error"})
 })
-
-
-
 
 app.listen(process.env.PORT || 5000, ()=>console.log("Server Started"))
